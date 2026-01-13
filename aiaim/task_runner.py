@@ -11,6 +11,7 @@ Coordinates the iterative process of:
 import time
 from dataclasses import dataclass, field
 from datetime import datetime
+from pathlib import Path
 from typing import Optional, Callable
 
 from aiaim.agent_cli import AgentCLI, AgentType
@@ -87,6 +88,7 @@ class TaskRunner:
         on_iteration_complete: Optional[Callable[[IterationLog], None]] = None,
         on_status_update: Optional[Callable[[str], None]] = None,
         on_agent_output: Optional[Callable[[str], None]] = None,
+        results_dir: Optional[str] = None,
     ):
         """
         Initialize the task runner.
@@ -103,12 +105,14 @@ class TaskRunner:
             on_iteration_complete: Optional callback after each iteration.
             on_status_update: Optional callback for status updates.
             on_agent_output: Optional callback for real-time agent output streaming.
+            results_dir: Optional directory for storing iteration results. If None, uses ".aiaim/results".
         """
         self.agent_type = agent_type
         self.model = model
         self.max_iterations = max_iterations
         self.delay_between_iterations = delay_between_iterations
         self.chat_id = chat_id
+        self.results_dir = results_dir or ".aiaim/results"
 
         # Store provided agents (may be None)
         self._provided_supervisor = supervisor_agent
@@ -163,19 +167,23 @@ class TaskRunner:
         self.supervisor = self._provided_supervisor or SupervisorAgent(
             agent_cli=supervisor_agent_cli,
             on_output=self.on_agent_output,
+            results_dir=self.results_dir,
         )
-        # If provided supervisor, update its agent_cli
+        # If provided supervisor, update its agent_cli and results_dir
         if self._provided_supervisor:
             self._provided_supervisor.agent_cli = supervisor_agent_cli
+            self._provided_supervisor.results_dir = Path(self.results_dir)
 
         # Create worker with chat_id-enabled agent CLI
         self.worker = self._provided_worker or WorkerAgent(
             agent_cli=worker_agent_cli,
             on_output=self.on_agent_output,
+            results_dir=self.results_dir,
         )
-        # If provided worker, update its agent_cli
+        # If provided worker, update its agent_cli and results_dir
         if self._provided_worker:
             self._provided_worker.agent_cli = worker_agent_cli
+            self._provided_worker.results_dir = Path(self.results_dir)
 
         # Store worker's agent CLI for reference
         self._worker_agent_cli = worker_agent_cli
@@ -260,9 +268,11 @@ class TaskRunner:
                     )
 
                 supervisor_result = self.supervisor.check_completion(
-                    task, context, on_output=self.on_agent_output
+                    task, context, on_output=self.on_agent_output, iteration=iteration
                 )
                 log.supervisor_result = supervisor_result
+
+                self._log_status(f"结果已保存到: {self.supervisor.get_result_file_path(iteration)}")
 
                 self._log_status(f"检查结果: {supervisor_result.summary}")
 

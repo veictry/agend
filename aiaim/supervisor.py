@@ -103,6 +103,7 @@ class SupervisorResult:
     summary: str
     raw_response: str = ""
     newly_completed: list[str] = field(default_factory=list)
+    iteration: int = 0  # Track which iteration this result is from
 
     def to_dict(self) -> dict:
         """Convert to dictionary."""
@@ -112,7 +113,33 @@ class SupervisorResult:
             "pending_items": self.pending_items,
             "newly_completed": self.newly_completed,
             "summary": self.summary,
+            "iteration": self.iteration,
         }
+
+    def save_to_file(self, filepath: Path) -> None:
+        """Save result to a JSON file."""
+        filepath.parent.mkdir(parents=True, exist_ok=True)
+        with open(filepath, "w", encoding="utf-8") as f:
+            json.dump(self.to_dict(), f, ensure_ascii=False, indent=2)
+
+    @classmethod
+    def load_from_file(cls, filepath: Path) -> Optional["SupervisorResult"]:
+        """Load result from a JSON file. Returns None if file doesn't exist."""
+        if not filepath.exists():
+            return None
+        try:
+            with open(filepath, "r", encoding="utf-8") as f:
+                data = json.load(f)
+            return cls(
+                is_complete=data.get("is_complete", False),
+                status=TaskStatus(data.get("status", "pending")),
+                pending_items=data.get("pending_items", []),
+                summary=data.get("summary", ""),
+                newly_completed=data.get("newly_completed", []),
+                iteration=data.get("iteration", 0),
+            )
+        except (json.JSONDecodeError, ValueError):
+            return None
 
 
 class SupervisorAgent:
@@ -161,6 +188,7 @@ class SupervisorAgent:
         check_prompt_template: Optional[str] = None,
         on_output: Optional[Callable[[str], None]] = None,
         todo_file: Optional[str] = None,
+        results_dir: Optional[str] = None,
     ):
         """
         Initialize the supervisor agent.
@@ -172,11 +200,13 @@ class SupervisorAgent:
             check_prompt_template: Optional custom prompt template for status checks.
             on_output: Optional callback for real-time output streaming.
             todo_file: Optional path to the todo list file. If None, uses ".aiaim/todo.json".
+            results_dir: Optional directory for saving iteration results. If None, uses ".aiaim/results".
         """
         self.agent_cli = agent_cli or AgentCLI.create(agent_type=agent_type, model=model)
         self.check_prompt_template = check_prompt_template or self.DEFAULT_CHECK_PROMPT
         self.on_output = on_output
         self.todo_file = Path(todo_file) if todo_file else Path(".aiaim/todo.json")
+        self.results_dir = Path(results_dir) if results_dir else Path(".aiaim/results")
         self._todo_list: Optional[TodoList] = None
 
     @property
@@ -191,11 +221,29 @@ class SupervisorAgent:
         if self._todo_list is not None:
             self._todo_list.save(self.todo_file)
 
+    def get_result_file_path(self, iteration: int) -> Path:
+        """Get the file path for a specific iteration's result."""
+        return self.results_dir / f"iteration_{iteration:03d}.json"
+
+    def get_latest_result(self) -> Optional[SupervisorResult]:
+        """Load the latest result from the results directory."""
+        if not self.results_dir.exists():
+            return None
+        
+        # Find all iteration files and get the latest one
+        result_files = sorted(self.results_dir.glob("iteration_*.json"), reverse=True)
+        if not result_files:
+            return None
+        
+        return SupervisorResult.load_from_file(result_files[0])
+
     def check_completion(
         self,
         task: str,
         context: str = "",
         on_output: Optional[Callable[[str], None]] = None,
+        iteration: int = 0,
+        save_to_file: bool = True,
     ) -> SupervisorResult:
         """
         Check if the task is complete.
@@ -208,6 +256,8 @@ class SupervisorAgent:
             task: The original task description.
             context: Additional context about current state (e.g., pending items from previous check).
             on_output: Optional callback for real-time output (overrides instance callback).
+            iteration: The current iteration number (used for file naming).
+            save_to_file: Whether to save the result to a JSON file.
 
         Returns:
             SupervisorResult indicating completion status and pending items.
@@ -237,9 +287,15 @@ class SupervisorAgent:
 
         # Parse the response and update todo list
         result = self._parse_response(response)
+        result.iteration = iteration
 
         # Update todo list with newly completed and pending items
         self._update_todo_list(result)
+
+        # Save result to file if requested
+        if save_to_file:
+            result_file = self.get_result_file_path(iteration)
+            result.save_to_file(result_file)
 
         return result
 
@@ -261,6 +317,38 @@ class SupervisorAgent:
         # Save the updated todo list
         self._save_todo_list()
 
+    def _extract_json_from_text(self, text: str) -> Optional[str]:
+        """
+        Extract a valid JSON object from text by finding balanced braces.
+
+        Args:
+            text: The text to search for JSON.
+
+        Returns:
+            The extracted JSON string, or None if not found.
+        """
+        # Find all positions of opening braces
+        start_positions = [i for i, c in enumerate(text) if c == "{"]
+
+        for start in start_positions:
+            # Try to find matching closing brace
+            brace_count = 0
+            for i in range(start, len(text)):
+                if text[i] == "{":
+                    brace_count += 1
+                elif text[i] == "}":
+                    brace_count -= 1
+                    if brace_count == 0:
+                        # Found a potential JSON object
+                        json_str = text[start : i + 1]
+                        try:
+                            json.loads(json_str)
+                            return json_str
+                        except json.JSONDecodeError:
+                            # Not valid JSON, try next start position
+                            break
+        return None
+
     def _parse_response(self, response: AgentResponse) -> SupervisorResult:
         """
         Parse the agent response into a SupervisorResult.
@@ -280,22 +368,42 @@ class SupervisorAgent:
                 raw_response=response.output,
             )
 
+        output = response.output
+        json_str = None
+
+        # Strategy 1: Try to find JSON in markdown code blocks (case-insensitive)
+        json_match = re.search(r"```(?:json)?\s*([\s\S]*?)\s*```", output, re.IGNORECASE)
+        if json_match:
+            candidate = json_match.group(1).strip()
+            try:
+                json.loads(candidate)
+                json_str = candidate
+            except json.JSONDecodeError:
+                pass
+
+        # Strategy 2: Try to extract JSON by finding balanced braces
+        if json_str is None:
+            json_str = self._extract_json_from_text(output)
+
+        # Strategy 3: Try the entire output as JSON
+        if json_str is None:
+            try:
+                json.loads(output.strip())
+                json_str = output.strip()
+            except json.JSONDecodeError:
+                pass
+
+        if json_str is None:
+            # Could not find valid JSON
+            return SupervisorResult(
+                is_complete=False,
+                status=TaskStatus.PENDING,
+                pending_items=["无法解析agent响应，请手动检查"],
+                summary=response.output[:200] if response.output else "无输出",
+                raw_response=response.output,
+            )
+
         try:
-            # Try to extract JSON from the response
-            output = response.output
-
-            # Try to find JSON in the response (might be wrapped in markdown code blocks)
-            json_match = re.search(r"```(?:json)?\s*([\s\S]*?)\s*```", output)
-            if json_match:
-                json_str = json_match.group(1)
-            else:
-                # Try to find raw JSON
-                json_match = re.search(r"\{[\s\S]*\}", output)
-                if json_match:
-                    json_str = json_match.group(0)
-                else:
-                    json_str = output
-
             data = json.loads(json_str)
 
             is_complete = data.get("is_complete", False)

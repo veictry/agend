@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-PyPI Release Script for cursor-cli
+PyPI Release Script for aiaim
 
 Usage:
     python scripts/release.py [--test]
@@ -36,7 +36,7 @@ def get_version() -> str:
 def clean_build_dirs():
     """Clean up build directories."""
     root = get_project_root()
-    dirs_to_clean = ["dist", "build", "src/cursor_cli.egg-info"]
+    dirs_to_clean = ["dist", "build", "aiaim.egg-info"]
     
     for dir_name in dirs_to_clean:
         dir_path = root / dir_name
@@ -155,7 +155,7 @@ def main():
     version = get_version()
     target = "TestPyPI" if test_mode else "PyPI"
     
-    print(f"🎯 cursor-cli v{version} -> {target}")
+    print(f"🎯 aiaim v{version} -> {target}")
     print("=" * 50)
     
     # Show changelog
@@ -205,11 +205,11 @@ def main():
     print("\n" + "=" * 50)
     print(f"🎉 Release v{version} complete!")
     if test_mode:
-        print(f"   View at: https://test.pypi.org/project/cursor-cli/")
-        print(f"   Install: pip install -i https://test.pypi.org/simple/ cursor-cli")
+        print("   View at: https://test.pypi.org/project/aiaim/")
+        print("   Install: pip install -i https://test.pypi.org/simple/ aiaim")
     else:
-        print(f"   View at: https://pypi.org/project/cursor-cli/")
-        print(f"   Install: pip install cursor-cli")
+        print("   View at: https://pypi.org/project/aiaim/")
+        print("   Install: pip install aiaim")
 
 
 if __name__ == "__main__":

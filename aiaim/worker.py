@@ -5,7 +5,9 @@ The worker agent receives task instructions and executes them to make progress
 toward task completion.
 """
 
+import json
 from dataclasses import dataclass
+from pathlib import Path
 from typing import Optional, Callable
 
 from aiaim.agent_cli import AgentCLI, AgentType, AgentResponse
@@ -63,6 +65,7 @@ class WorkerAgent:
         model: str = "claude-4.5-opus-high-thinking",
         execute_prompt_template: Optional[str] = None,
         on_output: Optional[Callable[[str], None]] = None,
+        results_dir: Optional[str] = None,
     ):
         """
         Initialize the worker agent.
@@ -73,10 +76,59 @@ class WorkerAgent:
             model: The model name to use.
             execute_prompt_template: Optional custom prompt template for execution.
             on_output: Optional callback for real-time output streaming.
+            results_dir: Optional directory for reading supervisor results. If None, uses ".aiaim/results".
         """
         self.agent_cli = agent_cli or AgentCLI.create(agent_type=agent_type, model=model)
         self.execute_prompt_template = execute_prompt_template or self.DEFAULT_EXECUTE_PROMPT
         self.on_output = on_output
+        self.results_dir = Path(results_dir) if results_dir else Path(".aiaim/results")
+
+    def get_result_file_path(self, iteration: int) -> Path:
+        """Get the file path for a specific iteration's result."""
+        return self.results_dir / f"iteration_{iteration:03d}.json"
+
+    def load_pending_items_from_file(self, iteration: int) -> Optional[list[str]]:
+        """
+        Load pending items from a supervisor result file.
+
+        Args:
+            iteration: The iteration number to load.
+
+        Returns:
+            List of pending items, or None if file doesn't exist or is invalid.
+        """
+        result_file = self.get_result_file_path(iteration)
+        if not result_file.exists():
+            return None
+
+        try:
+            with open(result_file, "r", encoding="utf-8") as f:
+                data = json.load(f)
+            return data.get("pending_items", [])
+        except (json.JSONDecodeError, IOError):
+            return None
+
+    def load_latest_pending_items(self) -> Optional[list[str]]:
+        """
+        Load pending items from the latest supervisor result file.
+
+        Returns:
+            List of pending items, or None if no result files exist.
+        """
+        if not self.results_dir.exists():
+            return None
+
+        # Find all iteration files and get the latest one
+        result_files = sorted(self.results_dir.glob("iteration_*.json"), reverse=True)
+        if not result_files:
+            return None
+
+        try:
+            with open(result_files[0], "r", encoding="utf-8") as f:
+                data = json.load(f)
+            return data.get("pending_items", [])
+        except (json.JSONDecodeError, IOError):
+            return None
 
     def execute_task(
         self,
