@@ -89,6 +89,8 @@ class TaskRunner:
         on_status_update: Optional[Callable[[str], None]] = None,
         on_agent_output: Optional[Callable[[str], None]] = None,
         results_dir: Optional[str] = None,
+        start_iteration: int = 1,
+        initial_pending_items: Optional[list[str]] = None,
     ):
         """
         Initialize the task runner.
@@ -106,6 +108,8 @@ class TaskRunner:
             on_status_update: Optional callback for status updates.
             on_agent_output: Optional callback for real-time agent output streaming.
             results_dir: Optional directory for storing iteration results. If None, uses ".aiaim/results".
+            start_iteration: Starting iteration number (for continue mode). Defaults to 1.
+            initial_pending_items: Initial pending items from previous run (for continue mode).
         """
         self.agent_type = agent_type
         self.model = model
@@ -113,6 +117,8 @@ class TaskRunner:
         self.delay_between_iterations = delay_between_iterations
         self.chat_id = chat_id
         self.results_dir = results_dir or ".aiaim/results"
+        self.start_iteration = start_iteration
+        self.initial_pending_items = initial_pending_items or []
 
         # Store provided agents (may be None)
         self._provided_supervisor = supervisor_agent
@@ -202,7 +208,8 @@ class TaskRunner:
         """
         start_time = time.time()
         logs: list[IterationLog] = []
-        current_pending_items: list[str] = []
+        # Initialize pending items from previous run if in continue mode
+        current_pending_items: list[str] = list(self.initial_pending_items)
         chat_id: Optional[str] = None
 
         self._log_status(f"开始执行任务: {task[:100]}...")
@@ -229,7 +236,10 @@ class TaskRunner:
                 error=f"Failed to create chat session: {e}",
             )
 
-        for iteration in range(1, self.max_iterations + 1):
+        # Calculate end iteration based on start_iteration and max_iterations
+        end_iteration = self.start_iteration + self.max_iterations
+
+        for iteration in range(self.start_iteration, end_iteration):
             timestamp = datetime.now().isoformat()
             self._log_status(f"\n=== 第 {iteration} 轮迭代 ===")
 
@@ -240,11 +250,15 @@ class TaskRunner:
                 # Step 1: Worker executes task
                 self._log_status("Worker正在执行任务...")
 
-                if iteration == 1:
-                    # First iteration: execute the original task
+                # First iteration of this run: check if we have pending items from continue mode
+                is_first_iteration_of_run = (iteration == self.start_iteration)
+                has_pending_items = bool(current_pending_items)
+
+                if is_first_iteration_of_run and not has_pending_items:
+                    # Fresh start: execute the original task
                     worker_result = self.worker.execute_task(task, on_output=self.on_agent_output)
                 else:
-                    # Subsequent iterations: include pending items
+                    # Continue mode or subsequent iterations: include pending items
                     worker_result = self.worker.execute_task(
                         task, current_pending_items, on_output=self.on_agent_output
                     )
@@ -315,21 +329,22 @@ class TaskRunner:
                 self.on_iteration_complete(log)
 
             # Delay before next iteration
-            if iteration < self.max_iterations:
+            if iteration < end_iteration - 1:
                 self._log_status(f"等待 {self.delay_between_iterations} 秒后继续...")
                 time.sleep(self.delay_between_iterations)
 
         # Max iterations reached
-        self._log_status(f"⚠️ 达到最大迭代次数 ({self.max_iterations})，任务未完成")
+        total_iterations = end_iteration - self.start_iteration
+        self._log_status(f"⚠️ 达到最大迭代次数 ({total_iterations})，任务未完成")
 
         return TaskRunResult(
             success=False,
             completed=False,
-            iterations=self.max_iterations,
+            iterations=end_iteration - 1,  # Last iteration number
             total_time=time.time() - start_time,
             chat_id=chat_id,
             logs=logs,
-            final_summary=f"达到最大迭代次数({self.max_iterations})，任务未完成",
+            final_summary=f"达到最大迭代次数({total_iterations})，任务未完成",
             error="Max iterations reached without task completion",
         )
 
