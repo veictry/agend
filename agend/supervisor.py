@@ -14,7 +14,7 @@ from enum import Enum
 from typing import Optional, Callable
 from pathlib import Path
 
-from aiaim.agent_cli import AgentCLI, AgentType, AgentResponse
+from agend.agent_cli import AgentCLI, AgentType, AgentResponse
 
 
 class TaskStatus(str, Enum):
@@ -199,14 +199,14 @@ class SupervisorAgent:
             model: The model name to use.
             check_prompt_template: Optional custom prompt template for status checks.
             on_output: Optional callback for real-time output streaming.
-            todo_file: Optional path to the todo list file. If None, uses ".aiaim/todo.json".
-            results_dir: Optional directory for saving iteration results. If None, uses ".aiaim/results".
+            todo_file: Optional path to the todo list file. If None, uses ".agend/todo.json".
+            results_dir: Optional directory for saving iteration results. If None, uses ".agend/results".
         """
         self.agent_cli = agent_cli or AgentCLI.create(agent_type=agent_type, model=model)
         self.check_prompt_template = check_prompt_template or self.DEFAULT_CHECK_PROMPT
         self.on_output = on_output
-        self.todo_file = Path(todo_file) if todo_file else Path(".aiaim/todo.json")
-        self.results_dir = Path(results_dir) if results_dir else Path(".aiaim/results")
+        self.todo_file = Path(todo_file) if todo_file else Path(".agend/todo.json")
+        self.results_dir = Path(results_dir) if results_dir else Path(".agend/results")
         self._todo_list: Optional[TodoList] = None
 
     @property

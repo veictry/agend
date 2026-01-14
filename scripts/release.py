@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-PyPI Release Script for aiaim
+PyPI Release Script for agend
 
 Usage:
     python scripts/release.py [--test]
@@ -36,7 +36,7 @@ def get_version() -> str:
 def clean_build_dirs():
     """Clean up build directories."""
     root = get_project_root()
-    dirs_to_clean = ["dist", "build", "aiaim.egg-info"]
+    dirs_to_clean = ["dist", "build", "agend.egg-info"]
     
     for dir_name in dirs_to_clean:
         dir_path = root / dir_name
@@ -155,7 +155,7 @@ def main():
     version = get_version()
     target = "TestPyPI" if test_mode else "PyPI"
     
-    print(f"🎯 aiaim v{version} -> {target}")
+    print(f"🎯 agend v{version} -> {target}")
     print("=" * 50)
     
     # Show changelog
@@ -205,13 +205,12 @@ def main():
     print("\n" + "=" * 50)
     print(f"🎉 Release v{version} complete!")
     if test_mode:
-        print("   View at: https://test.pypi.org/project/aiaim/")
-        print("   Install: pip install -i https://test.pypi.org/simple/ aiaim")
+        print("   View at: https://test.pypi.org/project/agend/")
+        print("   Install: pip install -i https://test.pypi.org/simple/ agend")
     else:
-        print("   View at: https://pypi.org/project/aiaim/")
-        print("   Install: pip install aiaim")
+        print("   View at: https://pypi.org/project/agend/")
+        print("   Install: pip install agend")
 
 
 if __name__ == "__main__":
     main()
-

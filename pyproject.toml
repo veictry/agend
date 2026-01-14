@@ -3,14 +3,14 @@ requires = ["setuptools>=61.0", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "aiaim"
-version = "0.2.0"
+name = "agend"
+version = "0.1.0"
 description = "AI Agent Iterative Manager - Supervisor/Worker agent pattern for task completion"
 readme = "README.md"
 license = {text = "MIT"}
 requires-python = ">=3.9"
 authors = [
-    {name = "aiaim contributors"}
+    {name = "agend contributors"}
 ]
 keywords = ["ai", "agent", "supervisor", "worker", "task", "automation", "cursor"]
 classifiers = [
@@ -39,15 +39,15 @@ dev = [
 ]
 
 [project.scripts]
-aiaim = "aiaim.cli:main"
+agend = "agend.cli:main"
 
 [project.urls]
-Homepage = "https://github.com/aiaim/aiaim"
-Repository = "https://github.com/aiaim/aiaim"
+Homepage = "https://github.com/veictry/agend"
+Repository = "https://github.com/veictry/agend"
 
 [tool.setuptools.packages.find]
 where = ["."]
-include = ["aiaim*"]
+include = ["agend*"]
 
 [tool.black]
 line-length = 100

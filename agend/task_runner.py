@@ -14,9 +14,9 @@ from datetime import datetime
 from pathlib import Path
 from typing import Optional, Callable
 
-from aiaim.agent_cli import AgentCLI, AgentType
-from aiaim.supervisor import SupervisorAgent, SupervisorResult
-from aiaim.worker import WorkerAgent, WorkerResult
+from agend.agent_cli import AgentCLI, AgentType
+from agend.supervisor import SupervisorAgent, SupervisorResult
+from agend.worker import WorkerAgent, WorkerResult
 
 
 @dataclass
@@ -107,7 +107,7 @@ class TaskRunner:
             on_iteration_complete: Optional callback after each iteration.
             on_status_update: Optional callback for status updates.
             on_agent_output: Optional callback for real-time agent output streaming.
-            results_dir: Optional directory for storing iteration results. If None, uses ".aiaim/results".
+            results_dir: Optional directory for storing iteration results. If None, uses ".agend/results".
             start_iteration: Starting iteration number (for continue mode). Defaults to 1.
             initial_pending_items: Initial pending items from previous run (for continue mode).
         """
@@ -116,7 +116,7 @@ class TaskRunner:
         self.max_iterations = max_iterations
         self.delay_between_iterations = delay_between_iterations
         self.chat_id = chat_id
-        self.results_dir = results_dir or ".aiaim/results"
+        self.results_dir = results_dir or ".agend/results"
         self.start_iteration = start_iteration
         self.initial_pending_items = initial_pending_items or []
 

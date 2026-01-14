@@ -1,5 +1,5 @@
 """
-CLI - Command line interface for AIAIM.
+CLI - Command line interface for AGEND.
 
 Provides a command-line interface for running tasks with the supervisor/worker pattern.
 """
@@ -15,9 +15,9 @@ from rich.progress import Progress, SpinnerColumn, TextColumn
 from rich.table import Table
 from rich import print as rprint
 
-from aiaim.agent_cli import AgentType
-from aiaim.task_runner import TaskRunner, IterationLog
-from aiaim import session as sess
+from agend.agent_cli import AgentType
+from agend.task_runner import TaskRunner, IterationLog
+from agend import session as sess
 
 
 console = Console()
@@ -109,7 +109,7 @@ def _run_task(
     console.print(
         Panel.fit(
             f"[bold]任务:[/bold] {task}",
-            title="AIAIM Task Runner",
+            title="AGEND Task Runner",
             border_style="blue",
         )
     )
@@ -126,7 +126,7 @@ def _run_task(
         console.print(f"  恢复 Agent Chat: {chat_id[:8]}...")
 
     # Results directory for this session
-    results_dir = str(sess.get_aiaim_dir() / session_id)
+    results_dir = str(sess.get_agend_dir() / session_id)
 
     # Create runner
     runner = TaskRunner(
@@ -264,32 +264,32 @@ def main(
     quiet: bool,
     list_sessions: bool,
 ):
-    """AIAIM - AI Agent Iterative Manager
+    """AGEND - AI Agent Iterative Manager
 
     A supervisor/worker agent pattern for iterative task completion.
 
     \b
     Examples:
         # Run a new task
-        aiaim "Create a Python function that calculates fibonacci numbers"
+        agend "Create a Python function that calculates fibonacci numbers"
 
         # Run with specific iterations
-        aiaim "Build a web scraper" -n 5
+        agend "Build a web scraper" -n 5
 
         # Continue the last session (default 10 iterations)
-        aiaim --continue
+        agend --continue
 
         # Continue with 5 more iterations
-        aiaim --continue 5
+        agend --continue 5
 
         # Continue a specific session
-        aiaim --continue --resume <session_id>
+        agend --continue --resume <session_id>
 
         # Read task from file
-        aiaim --file task.md
+        agend --file task.md
 
         # List recent sessions
-        aiaim --list
+        agend --list
     """
     # Handle --list
     if list_sessions:

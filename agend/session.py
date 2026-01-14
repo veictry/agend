@@ -1,11 +1,11 @@
 """
-Session management module for aiaim.
+Session management module for agend.
 
 Uses SQLite for efficient indexing and shell session tracking.
 Task content is stored in individual files for easy access and readability.
 
 Storage structure:
-    .aiaim/
+    .agend/
     ├── sessions.db                    # SQLite for index, shell tracking, and chat_id bindings
     └── {session_id}/                  # Session directory (uuid)
         ├── task.md                    # Original task content
@@ -22,23 +22,23 @@ from contextlib import contextmanager
 
 
 # Directory and database names
-AIAIM_DIR = ".aiaim"
+AGEND_DIR = ".agend"
 DATABASE_FILE = "sessions.db"
 
 
-def get_aiaim_dir(workspace: Optional[str] = None) -> Path:
+def get_agend_dir(workspace: Optional[str] = None) -> Path:
     """
-    Get the .aiaim directory path.
+    Get the .agend directory path.
 
     Args:
         workspace: Workspace directory (default: current directory)
 
     Returns:
-        Path to .aiaim directory
+        Path to .agend directory
     """
     if workspace is None:
         workspace = os.getcwd()
-    return Path(workspace) / AIAIM_DIR
+    return Path(workspace) / AGEND_DIR
 
 
 def get_database_path(workspace: Optional[str] = None) -> Path:
@@ -51,7 +51,7 @@ def get_database_path(workspace: Optional[str] = None) -> Path:
     Returns:
         Path to sessions.db
     """
-    return get_aiaim_dir(workspace) / DATABASE_FILE
+    return get_agend_dir(workspace) / DATABASE_FILE
 
 
 @contextmanager
@@ -94,7 +94,7 @@ def _ensure_tables(conn: sqlite3.Connection) -> None:
     cursor = conn.cursor()
 
     # Sessions table - stores session metadata/index
-    # session_id: aiaim session uuid
+    # session_id: agend session uuid
     # agent_chat_id: cursor-agent chat_id bound to this session
     cursor.execute(
         """
@@ -167,8 +167,8 @@ def ensure_session_dir(session_id: str, workspace: Optional[str] = None) -> Path
     Returns:
         Path to the session directory
     """
-    aiaim_dir = get_aiaim_dir(workspace)
-    session_dir = aiaim_dir / session_id
+    agend_dir = get_agend_dir(workspace)
+    session_dir = agend_dir / session_id
     session_dir.mkdir(parents=True, exist_ok=True)
     return session_dir
 
@@ -258,7 +258,7 @@ def bind_agent_chat_id(
     Bind an agent chat ID to an existing session.
 
     Args:
-        session_id: The aiaim session ID
+        session_id: The agend session ID
         agent_chat_id: The cursor-agent chat ID to bind
         workspace: Workspace directory
     """
@@ -302,7 +302,7 @@ def get_agent_chat_id(session_id: str, workspace: Optional[str] = None) -> Optio
     Get the agent chat ID bound to a session.
 
     Args:
-        session_id: The aiaim session ID
+        session_id: The agend session ID
         workspace: Workspace directory
 
     Returns:
@@ -522,7 +522,7 @@ def get_iteration_files(
     Returns:
         List of iteration file paths (sorted by name, newest first)
     """
-    session_dir = get_aiaim_dir(workspace) / session_id
+    session_dir = get_agend_dir(workspace) / session_id
     if not session_dir.exists():
         return []
 
@@ -879,7 +879,7 @@ def get_latest_iteration_result(
     """
     import json
 
-    results_dir = get_aiaim_dir(workspace) / session_id
+    results_dir = get_agend_dir(workspace) / session_id
     if not results_dir.exists():
         return None
 

@@ -10,7 +10,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Optional, Callable
 
-from aiaim.agent_cli import AgentCLI, AgentType, AgentResponse
+from agend.agent_cli import AgentCLI, AgentType, AgentResponse
 
 
 @dataclass
@@ -76,12 +76,12 @@ class WorkerAgent:
             model: The model name to use.
             execute_prompt_template: Optional custom prompt template for execution.
             on_output: Optional callback for real-time output streaming.
-            results_dir: Optional directory for reading supervisor results. If None, uses ".aiaim/results".
+            results_dir: Optional directory for reading supervisor results. If None, uses ".agend/results".
         """
         self.agent_cli = agent_cli or AgentCLI.create(agent_type=agent_type, model=model)
         self.execute_prompt_template = execute_prompt_template or self.DEFAULT_EXECUTE_PROMPT
         self.on_output = on_output
-        self.results_dir = Path(results_dir) if results_dir else Path(".aiaim/results")
+        self.results_dir = Path(results_dir) if results_dir else Path(".agend/results")
 
     def get_result_file_path(self, iteration: int) -> Path:
         """Get the file path for a specific iteration's result."""
